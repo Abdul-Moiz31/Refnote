@@ -11,14 +11,6 @@ export interface DocumentReferenceOptions {
   onNavigate: (documentId: string) => void;
 }
 
-declare module '@tiptap/core' {
-  interface Commands<ReturnType> {
-    documentReference: {
-      insertDocumentReference: (documentId: string) => ReturnType;
-    };
-  }
-}
-
 export const DocumentReference = Node.create<DocumentReferenceOptions>({
   name: 'documentReference',
   group: 'inline',
@@ -59,17 +51,6 @@ export const DocumentReference = Node.create<DocumentReferenceOptions>({
 
   addNodeView() {
     return ReactNodeViewRenderer(DocumentReferenceView);
-  },
-
-  addCommands() {
-    return {
-      insertDocumentReference:
-        (documentId: string) =>
-        ({ chain }) =>
-          chain()
-            .insertContent({ type: this.name, attrs: { documentId } })
-            .run(),
-    };
   },
 
   addProseMirrorPlugins() {

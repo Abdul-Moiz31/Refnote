@@ -40,6 +40,10 @@ export default function DocumentListView({
     return <p>Loading...</p>;
   }
 
+  if (documents.length === 0) {
+    return <p>No documents yet.</p>;
+  }
+
   return (
     <ul className="document-list">
       {documents.map((document) => (

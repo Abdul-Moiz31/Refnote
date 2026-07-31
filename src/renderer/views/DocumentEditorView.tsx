@@ -30,6 +30,14 @@ export default function DocumentEditorView({
     content: ProseMirrorJSONContent;
   } | null>(null);
 
+  const writePendingSave = () => {
+    const pending = pendingSaveRef.current;
+    if (pending) {
+      window.documents.save(pending.documentId, pending.content);
+      pendingSaveRef.current = null;
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -64,12 +72,8 @@ export default function DocumentEditorView({
           clearTimeout(saveTimeoutRef.current);
         }
         saveTimeoutRef.current = setTimeout(() => {
-          const pending = pendingSaveRef.current;
-          if (pending) {
-            window.documents.save(pending.documentId, pending.content);
-            pendingSaveRef.current = null;
-          }
           saveTimeoutRef.current = null;
+          writePendingSave();
         }, SAVE_DEBOUNCE_MS);
       },
     },
@@ -84,11 +88,7 @@ export default function DocumentEditorView({
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      const pending = pendingSaveRef.current;
-      if (pending) {
-        window.documents.save(pending.documentId, pending.content);
-        pendingSaveRef.current = null;
-      }
+      writePendingSave();
     };
   }, [documentId]);
 
