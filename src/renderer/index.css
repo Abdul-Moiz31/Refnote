@@ -28,3 +28,57 @@ body {
 .document-list-item:hover {
   background: #f0f0f0;
 }
+
+.ProseMirror {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  min-height: 12rem;
+  outline: none;
+}
+
+.document-reference-chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.mention-dropdown {
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 0.25rem;
+}
+
+.mention-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.mention-dropdown-item.is-selected,
+.mention-dropdown-item:hover {
+  background: #f0f0f0;
+}
+
+.mention-dropdown-empty {
+  padding: 0.4rem 0.6rem;
+  color: #888;
+  font-size: 0.95rem;
+}
