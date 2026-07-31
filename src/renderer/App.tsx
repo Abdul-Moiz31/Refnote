@@ -1,29 +1,51 @@
 import { useState } from 'react';
-import DocumentListView from './views/DocumentListView';
+import Sidebar from './layout/Sidebar';
+import SplashScreen from './layout/SplashScreen';
+import Logo from './layout/Logo';
 import DocumentEditorView from './views/DocumentEditorView';
 
-type View = { name: 'list' } | { name: 'editor'; documentId: string };
-
 export default function App() {
-  const [view, setView] = useState<View>({ name: 'list' });
+  const [showSplash, setShowSplash] = useState(true);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [documentTitle, setDocumentTitle] = useState<string | null>(null);
 
-  switch (view.name) {
-    case 'editor':
-      return (
-        <DocumentEditorView
-          documentId={view.documentId}
-          onBack={() => setView({ name: 'list' })}
-          onOpenDocument={(documentId) => setView({ name: 'editor', documentId })}
-        />
-      );
-    case 'list':
-    default:
-      return (
-        <DocumentListView
-          onSelectDocument={(documentId) =>
-            setView({ name: 'editor', documentId })
-          }
-        />
-      );
-  }
+  return (
+    <>
+      <div className="app-shell">
+        <header className="app-header">
+          <Logo size={18} />
+          {documentId && documentTitle && (
+            <div className="app-header-breadcrumb">
+              <span>Documents</span>
+              <span className="app-header-breadcrumb-sep">/</span>
+              <span className="app-header-breadcrumb-title">
+                {documentTitle}
+              </span>
+            </div>
+          )}
+        </header>
+        <div className="app-body">
+          <Sidebar
+            activeDocumentId={documentId}
+            onSelectDocument={setDocumentId}
+          />
+          <main className="app-main">
+            {documentId ? (
+              <DocumentEditorView
+                documentId={documentId}
+                onOpenDocument={setDocumentId}
+                onTitleChange={setDocumentTitle}
+              />
+            ) : (
+              <div className="empty-state">
+                <Logo size={40} showWordmark={false} className="empty-state-mark" />
+                <p>Select a document from the sidebar to start writing.</p>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+    </>
+  );
 }

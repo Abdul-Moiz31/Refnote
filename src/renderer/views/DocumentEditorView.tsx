@@ -10,16 +10,16 @@ import { DocumentReference } from '../editor/documentReference/DocumentReference
 
 interface DocumentEditorViewProps {
   documentId: string;
-  onBack: () => void;
   onOpenDocument: (documentId: string) => void;
+  onTitleChange?: (title: string | null) => void;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
 
 export default function DocumentEditorView({
   documentId,
-  onBack,
   onOpenDocument,
+  onTitleChange,
 }: DocumentEditorViewProps) {
   const [document, setDocument] = useState<Document | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +96,7 @@ export default function DocumentEditorView({
     let cancelled = false;
     setDocument(null);
     setError(null);
+    onTitleChange?.(null);
 
     window.documents
       .getById(documentId)
@@ -108,6 +109,7 @@ export default function DocumentEditorView({
           return;
         }
         setDocument(result);
+        onTitleChange?.(result.title);
         editor?.commands.setContent(result.content);
       })
       .catch(() => {
@@ -119,20 +121,17 @@ export default function DocumentEditorView({
     return () => {
       cancelled = true;
     };
-  }, [documentId, editor]);
+  }, [documentId, editor, onTitleChange]);
 
   return (
-    <div>
-      <button type="button" onClick={onBack}>
-        Back
-      </button>
-      {error && <p>{error}</p>}
-      {!error && !document && <p>Loading...</p>}
+    <div className="editor-view">
+      {error && <p className="editor-message">{error}</p>}
+      {!error && !document && <p className="editor-message">Loading...</p>}
       {document && (
-        <>
-          <h1>{document.title}</h1>
+        <div className="editor-content-wrapper">
+          <h1 className="editor-title">{document.title}</h1>
           <EditorContent editor={editor} />
-        </>
+        </div>
       )}
     </div>
   );
