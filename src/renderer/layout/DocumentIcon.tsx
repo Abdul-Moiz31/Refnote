@@ -3,7 +3,10 @@ interface DocumentIconProps {
   className?: string;
 }
 
-export default function DocumentIcon({ size = 15, className }: DocumentIconProps) {
+export default function DocumentIcon({
+  size = 15,
+  className,
+}: DocumentIconProps) {
   return (
     <svg
       width={size}

@@ -20,3 +20,14 @@ export const DOCUMENT_CHANNELS = {
   getById: 'documents:getById',
   save: 'documents:save',
 } as const;
+
+/**
+ * The full surface the preload bridge exposes on `window.documents`.
+ * Declared once here so the preload implementation and the renderer's
+ * global type declaration can never drift apart.
+ */
+export interface DocumentsApi {
+  list: () => Promise<DocumentSummary[]>;
+  getById: (id: string) => Promise<Document | undefined>;
+  save: (id: string, content: ProseMirrorJSONContent) => Promise<Document>;
+}

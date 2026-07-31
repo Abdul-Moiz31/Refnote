@@ -1,76 +1,140 @@
 # Refnote
 
-A desktop notes app built with Electron, React, and TipTap. Documents are stored as local JSON files and can reference each other via `@`-mentions.
+Refnote is a local desktop notes app built with Electron, React, and TipTap. You open a document from the sidebar, write in it, and link it to other documents by typing `@`, which inserts a clickable reference chip that takes you to the document it points at.
 
-## Features
+## Getting Started
 
-- **A list of your documents.** Open the app and see all your notes at a glance.
-- **A real text editor.** Click a document to open it and start typing — bold, italic, headings, and lists all work, and your changes save automatically as you type.
-- **Link documents to each other with `@`.** Type `@` anywhere in a document and start typing a title to search your other documents. Pick one and it's inserted as a little pill/chip showing that document's title.
-- **Click a reference to jump there.** Click any of those pills and you're taken straight to the document it points to. If you had unsaved changes in the document you were leaving, they're saved first so nothing is lost.
-- **Nothing breaks if a link goes stale.** If a reference ever points to a document that isn't there, it shows up clearly as "Unknown document" instead of crashing the app.
-
-## Technologies used
-
-- **Electron** — lets us build a desktop app (with its own window, running on your machine) using web technology instead of a native language like Swift or C++.
-- **React** — the library used to build the actual screens (the document list, the editor page) out of reusable pieces.
-- **TipTap** — the rich text editor itself. It's what turns a plain text box into something that understands bold, headings, lists, and our custom "document reference" pills.
-- **Vite** — the build tool that turns all the source code into something Electron can actually run, and gives fast reloads during development.
-- **TypeScript** — JavaScript with type-checking added, so a whole class of bugs (passing the wrong kind of value around) gets caught before the app even runs.
-- **Plain JSON files on disk** — instead of a database, each document is just saved as a `.json` file on your computer. Simple to look at, simple to back up, no extra software to install.
-
-## Running the app
-
-Requires Node 22.12+ (Electron's tooling depends on it) and npm.
+Prerequisites: Node 20.19 or newer, and npm. (Electron's own package declares `>= 22.12.0` in its `engines` field, so npm may print an engine warning on Node 20. The app builds and runs anyway. Verified on Node 20.20.0.)
 
 ```bash
 npm install
 npm start
 ```
 
-This launches the Electron app via `electron-forge`, with Vite powering the dev build for the main, preload, and renderer bundles. On first run, five sample documents are seeded automatically into the app's user data directory — no setup required.
+`npm start` runs `electron-forge start`, which builds the main, preload, and renderer bundles with Vite and opens the app window. On first launch, five sample documents are written to disk automatically. There is no other setup step.
 
 Other scripts:
 
 ```bash
-npm run lint    # eslint over .ts/.tsx
-npm run package # produce a packaged app (no installer)
-npm run make    # produce a distributable installer/artifact
+npm run lint          # eslint over .ts/.tsx
+npm run format        # prettier, writes
+npm run format:check  # prettier, verify only
+npm run package       # packaged app, no installer
+npm run make          # distributable installer
 ```
 
 ## Architecture
 
-### Main / preload / renderer split
+### The three-process split
 
-- **`src/main`** — the Electron main process. Owns the `BrowserWindow`, and hosts all filesystem access. `src/main/storage/documentStore.ts` is the only module that touches disk; `src/main/ipc/documents.ts` exposes it over three `ipcMain.handle` channels and contains no storage logic of its own.
-- **`src/preload`** — a thin `contextBridge` layer. It's the only file with access to both `ipcRenderer` and the eventual `window` the page sees. It exposes a narrow `window.documents` API (`list`, `getById`, `save`) rather than a general-purpose IPC passthrough, so the renderer can never reach arbitrary main-process/Node capability.
-- **`src/renderer`** — the React app. No Node or Electron APIs are available here directly (`nodeIntegration` is off, `contextIsolation` is on by default); everything renderer-side goes through `window.documents`.
-- **`src/shared`** — types and IPC channel name constants imported by both main and renderer, so the contract between them is defined once, not duplicated on each side.
+```
+src/main       Electron main process. Owns the window and all filesystem access.
+src/preload    contextBridge layer. The only code that sees both ipcRenderer and window.
+src/renderer   React app. No Node, no Electron, no filesystem.
+src/shared     Types and IPC channel names imported by both sides.
+```
 
-This split exists for the standard Electron security reason: the renderer loads web content and should be treated as untrusted, so filesystem access is confined to the main process and reached only through an explicit, narrow, typed bridge.
+The split is a security boundary, not a folder convention. The renderer runs web content, and web content is the part of an Electron app most likely to end up executing something you did not write. So it gets no Node access at all: `nodeIntegration` is off, `contextIsolation` is on, and the page carries a CSP that locks scripts, styles, and connections to `'self'` plus the localhost origins Vite's dev server needs.
 
-### Why filesystem storage
+That means the renderer cannot read or write a file even if it wanted to. Filesystem access lives entirely in `src/main/storage/documentStore.ts`, and the only way to reach it is through three named functions on the bridge.
 
-Documents are plain JSON files (one per document) in `app.getPath('userData')/documents`. For a single-user local desktop app with no sync or multi-writer concerns, a real database is unnecessary complexity — plain files are trivially inspectable, debuggable, and portable, and the access pattern (list all, get one, save one) doesn't need queries a database would justify. Saves write to a temp file and `rename` into place so a concurrent read never observes a half-written file.
+The preload script matters here. It exposes exactly `list`, `getById`, and `save`, not a general `invoke(channel, ...args)` passthrough. A generic passthrough would hand the renderer the ability to call any registered IPC handler, which gives back most of what `contextIsolation` was protecting. Three functions is a surface you can reason about.
 
-### Why TipTap
+### How a save travels
 
-The brief calls for rich structured content (ProseMirror/TipTap JSON) rather than plain text, plus a custom inline node type for document references with its own NodeView and `@`-mention behavior. TipTap is a thin, extensible layer over ProseMirror that gives us schema-defined custom nodes, React-rendered NodeViews, and a suggestion/mention utility out of the box, which is exactly this shape of requirement — building the same on raw ProseMirror or a non-extensible editor would mean reimplementing the parts TipTap already provides.
+Take autosaving an edit:
 
-### Why ID-based references
+1. The user types. `useDocumentAutosave` debounces for 500ms.
+2. It calls `saveDocument(id, content)` in `src/renderer/data/documentsClient.ts`, the one renderer module that talks to the bridge.
+3. That calls `window.documents.save(id, content)`, exposed by `src/preload/preload.ts`.
+4. Preload calls `ipcRenderer.invoke(DOCUMENT_CHANNELS.save, id, content)`. The channel name is a constant from `src/shared/document.ts`, so main and renderer cannot disagree about the string.
+5. `src/main/ipc/documents.ts` handles it and calls `saveDocument` in the store. The IPC layer holds no storage logic of its own; it wraps each handler so a failure is logged in main and comes back as a rejected promise rather than an unhandled exception.
+6. The store writes to a temp file and renames it into place, then returns the saved document.
+7. The result travels back as a resolved promise. If it rejected, the editor shows a save error instead of failing silently.
 
-A `documentReference` node stores only `documentId` — never a copied title. The display title is resolved at render time by looking up the id against the current document list. This means renaming a document (if that ever ships) doesn't require finding and rewriting every reference to it, and a reference to a document that's gone missing degrades to an explicit "Unknown document" state instead of showing stale, silently-wrong data.
+Reads follow the same path in the other direction.
 
-## Intentionally out of scope
+### Where documents live
 
-- **Create/delete documents.** Only `listDocuments`, `getDocumentById`, and `saveDocument` (content update) exist. The brief scoped this down explicitly; adding create/delete would also require deciding on trash/undo semantics for delete, which is a bigger design surface than "wire up an editor."
-- **Rich text beyond StarterKit's basics.** Bold/italic/headings/lists are available because they come free with `@tiptap/starter-kit`, but there's no toolbar, no formatting UI, and no custom marks — the task was about the reference system, not building a full editing experience.
-- **A "workspace" entity.** There's exactly one implicit workspace (the app's user data directory). Multi-workspace support, folders, or tagging would need a real data model decision (a workspace record, ownership, migration path) that nothing in the current requirements calls for.
-- **Renaming documents.** Since there's no create, and titles are only ever set at seed time, there was no requirement driving a rename flow — though the ID-based reference design means adding one later wouldn't touch the reference system at all.
+One JSON file per document, in `documents/` inside Electron's per-app user data directory (`app.getPath('userData')`). On macOS that is `~/Library/Application Support/<app name>/documents/doc-1.json` and so on.
 
-## What I'd add next
+Each file holds `id`, `title`, and `content`, where content is the TipTap/ProseMirror JSON document. The files are meant to be readable: if you want to check that a reference stored an ID and not a title, you can just open one.
 
-- **Backlinks.** Since references are just `documentId` pointers, a "referenced by" panel is a matter of scanning all documents for nodes matching the current id and surfacing the results — no schema change needed, just a read-side query (probably cached, since it means opening every document on disk).
-- **Search.** Right now `listDocuments` returns everything; a real search box (title first, full-text over content second) would help once the document count grows past what fits on one screen, and could reuse the same title-matching logic already in the mention dropdown.
-- **Undo/redo across saves.** TipTap's history extension gives in-session undo for free, but there's no way to recover a previous *saved* version once the debounce fires and overwrites the file. Simple version history (keep the last N saves, or a append-only log) would make the autosave behavior feel safer.
-- **Delete (with trash).** The current no-delete constraint is deliberate for this pass, but any real notes app needs it eventually — with a trash/undo step given how much reference integrity depends on documents not disappearing out from under a `documentReference` node.
+## Key Engineering Decisions
+
+### JSON files on disk instead of a database
+
+This is a single user, single writer, local app, and the entire access pattern is list all, get one, save one. There is no query a database would make easier, so adding one would mean a schema, a migration story, and a dependency in exchange for nothing.
+
+Plain files are also the better debugging story. When I needed to confirm that references were stored by ID, I read the file. When I needed to test the missing-reference path, I edited a file to point at an ID that does not exist.
+
+The one thing files do not give you for free is atomicity, so saves write to a temp file and `rename` into place. Rename is atomic on the platforms this targets, which means a read can never catch a half-written document.
+
+### TipTap, even with formatting turned off
+
+The reference chip is not styled text. It is a real inline atom node in the document schema with a `documentId` attribute and a React NodeView that resolves the title at render time. That is the requirement that picked the editor, not formatting.
+
+Getting that on a plain textarea would mean inventing a serialization format and writing selection and caret handling around a widget the browser does not know about. TipTap gives schema-defined custom nodes, React NodeViews, and the `@` suggestion plugin directly, which is most of this feature.
+
+So formatting being off is not TipTap going unused. The structured document model is the part being used.
+
+### References store IDs, not names
+
+A `documentReference` node stores only `{ documentId: "doc-3" }`. The title shown on the chip is looked up against the current document list every render.
+
+The alternative, copying the title into the node, means every rename becomes a migration: find every document, walk its content tree, rewrite every matching node, and hope nothing failed halfway. With IDs, a rename is a change to one field in one file, and every chip pointing at it shows the new title the next time it renders. I verified this by renaming a document on disk and confirming both existing chips updated.
+
+It also makes broken links honest. A name-based reference to a deleted document silently keeps showing a title that means nothing. An ID that resolves to nothing can render as "Unknown document," which is true.
+
+### Mention logic is isolated
+
+Everything about the reference feature lives in `src/renderer/editor/documentReference/`:
+
+```
+DocumentReferenceExtension.tsx   node schema, attributes, suggestion plugin
+DocumentReferenceView.tsx        the chip NodeView, title resolution, click to navigate
+MentionList.tsx                  the dropdown, filtering, keyboard selection
+```
+
+The editor view itself (`views/DocumentEditorView.tsx`) does document loading, autosave wiring, and rendering. It configures the extension with two callbacks, `getDocuments` and `onNavigate`, and knows nothing else about how mentions work.
+
+The reason is that these two things change for unrelated reasons. Reference behaviour changes when you want fuzzy matching or backlinks. Editor setup changes when you want a different save strategy or a new view state. Keeping them separate means the extension has one clear contract and could be dropped into a different editor surface without untangling anything.
+
+## Scope
+
+These were left out on purpose. Each one is a decision, not an unfinished edge.
+
+### No create or delete
+
+The store exposes `listDocuments`, `getDocumentById`, and `saveDocument`. There is no create and no delete anywhere in the app or the UI, and documents are pre-seeded on first run.
+
+Delete in particular is not a small feature here. Deleting a document breaks every reference pointing at it, which means deciding between trash with restore, blocking deletes that have inbound references, or accepting broken links. That is a real design conversation, and answering it badly is worse than not shipping it.
+
+### No rich text formatting
+
+`StarterKit` is explicitly configured with bold, italic, strike, underline, code, code blocks, headings, lists, blockquote, horizontal rules, and links all turned off. What is left is paragraphs, line breaks, undo/redo, and the reference node.
+
+This is a deliberate change from the default. Leaving StarterKit alone would have shipped formatting that works through Cmd+B and markdown input rules while nothing in the UI says it exists, which is worse than not having it. The content model is still ProseMirror JSON, so turning any of it back on is a one-line change.
+
+### No workspace or folder entity
+
+Documents are a flat pool. There is no workspace record, no folder, and no tag in the data model or the UI.
+
+Referencing is what actually provides structure here. Once documents can point at each other, the useful relationships are the links, and a folder tree is a second, weaker organizing system sitting next to them. Adding one would mean deciding what a workspace owns, whether references can cross workspaces, and what happens when they do. Nothing in the current requirements calls for that.
+
+## Edge Cases Handled
+
+- **Self-references.** A document can reference itself. It appears in its own `@` dropdown, inserts normally, and clicking it is a no-op rather than a reload or a crash.
+- **Multiple references to the same document.** Each chip is an independent node. Two references to the same document in one paragraph both render and both navigate.
+- **Missing or invalid reference IDs.** A `documentId` that resolves to nothing renders as "Unknown document" with a distinct style, a default cursor, and no click handler. The editor does not throw and the rest of the document renders normally.
+- **Save before navigate.** Navigating away from an unsaved edit flushes the pending debounced save before the view unmounts. On top of that, the renderer's document client serializes writes per document ID and makes reads wait for a write still in flight, so editing a document, leaving, and immediately coming back cannot read the file mid-save.
+- **No matches in the dropdown.** Typing a query that matches nothing shows an explicit "No matches" state rather than an empty box or a dropdown that vanishes.
+- **Unreadable files.** One corrupt JSON file is skipped and logged instead of taking down the whole document list.
+
+## What I'd Add With More Time
+
+**Backlinks.** Show which documents reference the one you have open. References are already just `documentId` pointers, so this is a read-side query: walk every document's content tree for matching nodes. It needs a cache, since done naively it means opening every file on disk on every navigation.
+
+**Search across documents.** Titles first, then full text over content. The title-matching logic already exists in the mention dropdown, so the first half is mostly moving that behind a shared function and giving it a UI.
+
+**Undo and version history.** TipTap gives in-session undo already, but once the autosave debounce fires there is no way back to a previous saved state. I would keep the last N saves per document as sibling files, which fits the existing storage model and does not need a schema.

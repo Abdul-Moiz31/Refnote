@@ -1,16 +1,18 @@
 {
   "name": "refnote",
-  "productName": "refnote",
+  "productName": "Refnote",
   "version": "1.0.0",
   "description": "Refnote desktop application",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
-    "start": "electron-forge start",
+    "start": "node api.js && electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": {
@@ -37,6 +39,7 @@
     "electron": "43.2.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.9.6",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
   },
@@ -46,7 +49,9 @@
     "@tiptap/react": "^3.29.2",
     "@tiptap/starter-kit": "^3.29.2",
     "@tiptap/suggestion": "^3.29.2",
+    "dotenv": "^8.2.0",
     "electron-squirrel-startup": "^1.0.1",
+    "node-fetch": "^3.3.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   }

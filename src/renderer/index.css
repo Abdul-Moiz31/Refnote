@@ -29,6 +29,12 @@
 
   /* Shared separator treatment, reused by header + sidebar */
   --shadow-separator: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* Single hover/press transition used by every interactive element */
+  --transition-fast: 150ms ease;
+  /* Keep in sync with FADE_DURATION_MS in layout/SplashScreen.tsx */
+  --splash-fade-duration: 250ms;
 
   --header-height: 58px;
   --sidebar-width: 260px;
@@ -112,7 +118,7 @@ body {
     var(--color-bg-subtle) 100%
   );
   opacity: 1;
-  transition: opacity 250ms ease;
+  transition: opacity var(--splash-fade-duration) ease;
 }
 
 .splash-screen.is-leaving {
@@ -262,7 +268,9 @@ body {
   font-family: inherit;
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .document-list-item:hover {
@@ -331,6 +339,15 @@ body {
   color: var(--color-text-secondary);
 }
 
+.editor-save-error {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 0.85rem;
+}
+
 .editor-surface {
   min-height: calc(100% - var(--space-4));
   max-width: 800px;
@@ -383,7 +400,7 @@ body {
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background-color var(--transition-fast);
 }
 
 .document-reference-chip:hover {
@@ -391,9 +408,16 @@ body {
   text-decoration: underline;
 }
 
+/* A reference whose target no longer resolves: shown plainly, not clickable. */
 .document-reference-chip.is-missing {
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
+  cursor: default;
+}
+
+.document-reference-chip.is-missing:hover {
+  background: var(--color-danger-bg);
+  text-decoration: none;
 }
 
 /* ---------- @ mention dropdown ---------- */
@@ -407,7 +431,7 @@ body {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-popover);
   padding: var(--space-1);
 }
 
@@ -426,7 +450,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background-color 150ms ease;
+  transition: background-color var(--transition-fast);
 }
 
 .mention-dropdown-item.is-selected,
