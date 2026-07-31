@@ -128,9 +128,11 @@ export default function DocumentEditorView({
       {error && <p className="editor-message">{error}</p>}
       {!error && !document && <p className="editor-message">Loading...</p>}
       {document && (
-        <div className="editor-content-wrapper">
-          <h1 className="editor-title">{document.title}</h1>
-          <EditorContent editor={editor} />
+        <div className="editor-surface">
+          <div className="editor-content-wrapper">
+            <h1 className="editor-title">{document.title}</h1>
+            <EditorContent editor={editor} />
+          </div>
         </div>
       )}
     </div>

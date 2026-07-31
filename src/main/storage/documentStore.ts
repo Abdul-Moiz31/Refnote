@@ -56,6 +56,14 @@ const SEED_DOCUMENTS: Document[] = [
       paragraph('Edit this document and your changes will be saved automatically.'),
     ),
   },
+  {
+    id: 'doc-6',
+    title: 'Testing Document',   
+    content: doc(
+      paragraph('Documents are stored locally on your machine as plain JSON files.'),
+      paragraph('Edit this document and your changes will be saved automatically.'),
+    ),
+  },
 ];
 
 function getDocumentsDir(): string {
