@@ -1,5 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion';
+import type {
+  SuggestionKeyDownProps,
+  SuggestionProps,
+} from '@tiptap/suggestion';
 import type { DocumentSummary } from '../../../shared/document';
 
 export interface MentionListHandle {

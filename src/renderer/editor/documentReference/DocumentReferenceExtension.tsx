@@ -1,13 +1,13 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, ReactRenderer } from '@tiptap/react';
-import Suggestion from '@tiptap/suggestion';
+import { Suggestion } from '@tiptap/suggestion';
 import type { DocumentSummary } from '../../../shared/document';
 import DocumentReferenceView from './DocumentReferenceView';
 import MentionList, { type MentionListHandle } from './MentionList';
 
 export interface DocumentReferenceOptions {
+  /** Resolves reference titles and populates the `@` dropdown. */
   getDocuments: () => DocumentSummary[];
-  getCurrentDocumentId: () => string | null;
   onNavigate: (documentId: string) => void;
 }
 
@@ -21,7 +21,6 @@ export const DocumentReference = Node.create<DocumentReferenceOptions>({
   addOptions() {
     return {
       getDocuments: () => [],
-      getCurrentDocumentId: () => null,
       onNavigate: () => undefined,
     };
   },
@@ -60,17 +59,15 @@ export const DocumentReference = Node.create<DocumentReferenceOptions>({
         char: '@',
         allowSpaces: false,
         items: ({ query }) => {
-          const currentDocumentId = this.options.getCurrentDocumentId();
           const normalizedQuery = query.trim().toLowerCase();
+          const summaries = this.options.getDocuments();
 
-          return this.options
-            .getDocuments()
-            .filter((document) => document.id !== currentDocumentId)
-            .filter((document) =>
-              normalizedQuery
-                ? document.title.toLowerCase().includes(normalizedQuery)
-                : true,
-            );
+          if (!normalizedQuery) {
+            return summaries;
+          }
+          return summaries.filter((summary) =>
+            summary.title.toLowerCase().includes(normalizedQuery),
+          );
         },
         command: ({ editor, range, props }) => {
           editor
