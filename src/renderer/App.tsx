@@ -1,13 +1,28 @@
 import { useState } from 'react';
+import DocumentListView from './views/DocumentListView';
+import DocumentEditorView from './views/DocumentEditorView';
 
-type Route = 'home';
+type View = { name: 'list' } | { name: 'editor'; documentId: string };
 
 export default function App() {
-  const [route] = useState<Route>('home');
+  const [view, setView] = useState<View>({ name: 'list' });
 
-  switch (route) {
-    case 'home':
+  switch (view.name) {
+    case 'editor':
+      return (
+        <DocumentEditorView
+          documentId={view.documentId}
+          onBack={() => setView({ name: 'list' })}
+        />
+      );
+    case 'list':
     default:
-      return <div />;
+      return (
+        <DocumentListView
+          onSelectDocument={(documentId) =>
+            setView({ name: 'editor', documentId })
+          }
+        />
+      );
   }
 }
