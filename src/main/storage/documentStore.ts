@@ -136,10 +136,11 @@ export async function saveDocument(
     throw new Error(`Document not found: ${id}`);
   }
   const updated: Document = { ...existing, content };
-  await fs.writeFile(
-    getDocumentPath(id),
-    JSON.stringify(updated, null, 2),
-    'utf-8',
-  );
+  const finalPath = getDocumentPath(id);
+  const tempPath = `${finalPath}.${process.pid}.tmp`;
+  // Write to a temp file and rename into place so a concurrent read never
+  // observes a partially written file.
+  await fs.writeFile(tempPath, JSON.stringify(updated, null, 2), 'utf-8');
+  await fs.rename(tempPath, finalPath);
   return updated;
 }

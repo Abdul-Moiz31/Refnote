@@ -13,6 +13,7 @@ export default function App() {
         <DocumentEditorView
           documentId={view.documentId}
           onBack={() => setView({ name: 'list' })}
+          onOpenDocument={(documentId) => setView({ name: 'editor', documentId })}
         />
       );
     case 'list':

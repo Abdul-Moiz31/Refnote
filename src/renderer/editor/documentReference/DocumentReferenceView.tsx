@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import type { NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper } from '@tiptap/react';
 import type { DocumentReferenceOptions } from './DocumentReferenceExtension';
@@ -13,7 +14,18 @@ export default function DocumentReferenceView({
     .find((document) => document.id === documentId);
 
   return (
-    <NodeViewWrapper as="span" className="document-reference-chip">
+    <NodeViewWrapper
+      as="span"
+      className={
+        'document-reference-chip' + (target ? '' : ' is-missing')
+      }
+      onMouseDown={(event: MouseEvent) => event.preventDefault()}
+      onClick={() => {
+        if (documentId) {
+          options.onNavigate(documentId);
+        }
+      }}
+    >
       {target ? target.title : 'Unknown document'}
     </NodeViewWrapper>
   );

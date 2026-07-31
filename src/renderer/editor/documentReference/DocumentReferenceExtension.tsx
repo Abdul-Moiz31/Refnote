@@ -8,6 +8,7 @@ import MentionList, { type MentionListHandle } from './MentionList';
 export interface DocumentReferenceOptions {
   getDocuments: () => DocumentSummary[];
   getCurrentDocumentId: () => string | null;
+  onNavigate: (documentId: string) => void;
 }
 
 declare module '@tiptap/core' {
@@ -29,6 +30,7 @@ export const DocumentReference = Node.create<DocumentReferenceOptions>({
     return {
       getDocuments: () => [],
       getCurrentDocumentId: () => null,
+      onNavigate: () => undefined,
     };
   },
 

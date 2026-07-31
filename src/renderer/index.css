@@ -45,6 +45,16 @@ body {
   color: #3730a3;
   font-size: 0.9em;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.document-reference-chip:hover {
+  background: #c7d2fe;
+}
+
+.document-reference-chip.is-missing {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .mention-dropdown {
