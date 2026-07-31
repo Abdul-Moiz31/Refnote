@@ -13,7 +13,7 @@ export default function App() {
     <>
       <div className="app-shell">
         <header className="app-header">
-          <Logo size={18} />
+          <Logo size={22} />
           {documentId && documentTitle && (
             <div className="app-header-breadcrumb">
               <span>Documents</span>
